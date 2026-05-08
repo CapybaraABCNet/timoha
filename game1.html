@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Приключения Тимохи, Глава 3. Уровень 1, подглава 1</title>
+	<style>
+        body { margin: 0; padding: 0; background: #111; display: flex; justify-content: center; align-items: center; height: 100vh; color: white; font-family: sans-serif; overflow: hidden; }
+        canvas { box-shadow: 0 0 20px black; border: 2px solid #444; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+</head>
+<body>
+
+	<script>
+		class LevelScene extends Phaser.Scene {
+			constructor() { super('LevelScene'); }
+
+			preload() {
+				this.load.image('timoha', 'https://capybaraabcnet.github.io/TimohaGame/photo.png');
+				 this.add.graphics().fillStyle(0x8B4513, 1).fillRect(0, 0, 64, 32).generateTexture('platforms', 64, 32);
+				this.add.graphics().fillStyle(0xff0000, 1).fillTriangle(0, 32, 32, 32, 16, 0).generateTexture('hazard', 32, 32);
+    this.add.graphics().fillStyle(0xffff00, 1).fillRect(0, 0, 24, 24).generateTexture('energy', 24, 24);
+				this.add.graphics().fillStyle(0xffffff, 0.5).lineStyle(3, 0xffffff).fillCircle(40, 40, 35).strokeCircle(40, 40, 35).generateTexture('exit', 80, 80);
+				this.add.graphics().fillStyle(0xffffff, 0.5).lineStyle(3, 0xffffff).fillCircle(40, 40, 35).strokeCircle(40, 40, 35).generateTexture('btnBg', 80, 80);
+				
+			}
+
+			create() {
+				this.timoha = this.physics.add.sprite(100, 0, 'timoha').setScale(0.2);
+				this.timoha.setCollideWorldBounds(true);
+
+				const level = [
+                "11111111111111111111111111111111111111",
+            "1....................................1",
+            "1.............X.E.................E..1",
+            "1.............111..........1...1",
+            "1...P........................K.....1",
+            "11111..111..........1111........11111111",
+            "1...............111..............1",
+            "1............E................1",
+            "11111.......111...................1",
+            "1.......................X..X......1",
+            "1......................11111.....1",
+            "1.....X...........................1",
+            "11111111111111111111111111111111111"
+];
+
+				const tileSize = 32;
+				this.energyAll = 0;
+
+				this.platforms = this.physics.add.group({ allowGravity: false, immovable: true });
+				this.hazard = this.physics.add.group({ allowGravity: false, immovable: true });
+				this.exit = this.physics.add.staticGroup();
+				this.energy = this.physics.add.group({ allowGravity: false });
+
+				level.forEach((row, indexRow) => {
+					for (let i = 0; i < row.length; i++) {
+						const symbol = row[i];
+						const x = i * tileSize;
+						const y = indexRow * tileSize;
+
+						if (symbol === '1') {
+							this.platforms.create(x, y, 'platforms');
+						} else if (symbol === 'T') {
+							this.timoha.setPosition(x, y);
+						} else if (symbol === 'X') {
+							let h = this.hazard.create(x + 16, y + 16, 'hazard');
+							h.body.setSize(32, 32);
+						} else if (symbol === 'K') {
+							this.exit.create(x + 16, y + 32, 'exit').setScale(0.2);
+						} else if (symbol === 'E') {
+							this.energy.create(x, y, 'energy');
+						}
+					}
+				});
+
+				this.physics.add.collider(this.timoha, this.platforms);
+				this.physics.add.overlap(this.timoha, this.hazard, this.hitHazard, null, this);
+				this.physics.add.overlap(this.timoha, this.exit, this.levelComplete, null, this);
+				this.physics.add.overlap(this.timoha, this.energy, this.collectEnergy, null, this);
+				this.createButtons();
+				this.cursors = this.input.keyboard.createCursorKeys();
+				this.cameras.main.startFollow(this.timoha, true, 0.1, 0.1);
+				this.cameras.main.setBounds(0, 0, 38 * tileSize, 13 * tileSize);
+				this.physics.world.setBounds(0, 0, 38 * tileSize, 13 * tileSize);
+			}
+
+			createButtons() {
+				const btnY = 550;
+
+				this.leftPressed = false;
+				this.rightPressed = false;
+				this.jumpPressed = false;
+
+				this.btnLeft = this.add.container(60, btnY);
+
+				let bgL = this.add.image(0, 0, 'btnBg');
+				let txtL = this.add.text(0, 0, '<', { fontSize: '40px', fill: '#000' }).setOrigin(0.5);
+				this.btnLeft.add([bgL, txtL]);
+
+				this.btnLeft.setSize(80, 80).setInteractive();
+                this.btnLeft.setScrollFactor(0);
+
+                this.btnLeft.on('pointerdown', () => {
+                	this.leftPressed = true;
+                	bgL.setScale(0.9);
+                });
+                this.btnLeft.on('pointerup', () => {
+                	this.leftPressed = false;
+                	bgL.setScale(1);
+                });
+                this.btnLeft.on('pointerout', () => {
+                	this.leftPressed = false;
+                	bgL.setScale(1);
+                });
+
+                this.btnRight = this.add.container(160, btnY);
+
+                let bgR = this.add.image(0, 0, 'btnBg');
+				let txtR = this.add.text(0, 0, '>', { fontSize: '40px', fill: '#000' }).setOrigin(0.5);
+				this.btnRight.add([bgR, txtR]);
+
+				this.btnRight.setSize(80, 80).setInteractive();
+                this.btnRight.setScrollFactor(0);
+
+                this.btnRight.on('pointerdown', () => {
+                	this.rightPressed = true;
+                	bgR.setScale(0.9);
+                });
+                this.btnRight.on('pointerup', () => {
+                	this.rightPressed = false;
+                	bgR.setScale(1);
+                });
+                this.btnRight.on('pointerout', () => {
+                	this.rightPressed = false;
+                	bgR.setScale(1);
+                });
+
+                this.btnJump = this.add.container(740, btnY);
+
+                let bgJ = this.add.image(0, 0, 'btnBg');
+				let txtJ = this.add.text(0, 0, 'Up', { fontSize: '40px', fill: '#000' }).setOrigin(0.5);
+				this.btnJump.add([bgJ, txtJ]);
+
+				this.btnJump.setSize(80, 80).setInteractive();
+                this.btnJump.setScrollFactor(0);
+                
+                this.btnJump.on('pointerdown', () => { 
+                    this.jumpPressed = true; 
+                    bgJ.setScale(0.9); 
+                    this.doJump(); 
+                });
+                this.btnJump.on('pointerup', () => { this.jumpPressed = false; bgJ.setScale(1); });
+			}
+
+			doJump() {
+				if (this.timoha.body.touching.down) {
+					this.timoha.setVelocityY(-330);
+				}
+			}
+
+			collectEnergy(timoha, energy) {
+				energy.destroy();
+				this.energyAll++;
+			}
+
+			hitHazard() {
+				this.scene.restart();
+			}
+
+			levelComplete(timoha) {
+				if (this.energyAll === 3) {
+					this.add.text(200, 300, 'УРОВЕНЬ ПРОЙДЕН!', { fontSize: '40px', fill: '#0f0', fontStyle: 'bold'  }).setScrollFactor(0);
+				    this.physics.pause();
+		 		    this.time.delayedCall(2000, () => {
+                        this.scene.restart();
+                    });
+				} else {
+					alert("Возьмите всю энергию");
+					this.scene.restart();
+				}
+			}
+
+			update() {
+				if (!this.timoha.active) return;
+
+				const isLeft = this.cursors.left.isDown || this.leftPressed;
+				const isRight = this.cursors.right.isDown || this.rightPressed;
+				const isJump = this.cursors.up.isDown || this.jumpPressed;
+
+				if (isLeft) {
+					this.timoha.setVelocityX(-160);
+					this.timoha.flipX = true;
+				} else if (isRight) {
+					this.timoha.setVelocityX(160);
+					this.timoha.flipX = false;
+				} else {
+					this.timoha.setVelocityX(0);
+				}
+
+				if (isJump && this.timoha.body.touching.down) {
+					this.timoha.setVelocityY(-330);
+				}
+
+				if (this.timoha.y > this.physics.world.bounds.height) {
+					this.scene.restart();
+				}
+			}
+		}
+
+		const config = {
+			type: Phaser.AUTO,
+			width: 800,
+			height: 600,
+			backgroundColor: "#222",
+			physics: {default: 'arcade', arcade: { debug: false, gravity: { y: 600 } } },
+			scene: LevelScene
+		};
+
+		const game = new Phaser.Game(config);
+	</script>
+</body>
+</html>
